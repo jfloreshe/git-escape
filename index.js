@@ -4,6 +4,7 @@ const fs  = require('fs');
 const GITPATH = process.argv[2];
 
 function getRawCommitsAndParents(){
+    console.log(GITPATH)
     return new Promise((resolve, reject) => {
         let buffer = "";
         let git = spawn('git', [`--git-dir=${GITPATH}`, 'rev-list', '--all', '--parents']);
@@ -55,6 +56,8 @@ function getCommitNodes(){
                 ids = line.split(' ');
                 let id = ids[0];
                 let parents = ids.slice(1);
+                let branch = await getCommitBranch(id);
+                branch = branch.split('~')[0];
                 let response = await getRawDataFromCommit(id);
                 let linesExtraData = response.split(/\r?\n/);
                 let author = linesExtraData[0];
@@ -80,6 +83,7 @@ function getCommitNodes(){
                 let node = {
                     id,
                     parents,
+                    branch,
                     author,
                     email,
                     date,
@@ -150,6 +154,27 @@ function getRawBranhches(){
         git.on('close', (code) => {
             if (code != 0){
                 return reject(`git had an error trying to resolve authors with ${code}`)
+            }
+            resolve(buffer);
+        });
+    })
+}
+
+function getCommitBranch(id){
+    return new Promise((resolve, reject) => {
+        let buffer = "";
+        let git = spawn('git', [`--git-dir=${GITPATH}`, 'name-rev', '--name-only', id])
+        git.stdout.on('data', (data) => {
+            buffer += data;
+        });
+
+        git.stderr.on('data', (data) => {
+            console.error(`stderr: ${data}`);
+        });
+        
+        git.on('close', (code) => {
+            if (code != 0){
+                return reject(`git had an error trying to resolve branches with ${code}`)
             }
             resolve(buffer);
         });
